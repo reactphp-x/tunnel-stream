@@ -1,5 +1,7 @@
 <?php
 
+use React\Stream\WritableResourceStream;
+
 if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require __DIR__ . '/../vendor/autoload.php';
 } else {
@@ -13,18 +15,25 @@ if (getenv('BOOT_FILE')) {
 use React\EventLoop\Loop;
 use ReactphpX\TunnelStream\TunnelStream;
 use React\Stream\ThroughStream;
+use React\Stream\ReadableResourceStream;
 
 $read = new ThroughStream();
 $write = new ThroughStream();
 
 $tunnelStream = new TunnelStream($read, $write, true);
-$write->on('data', function ($buffer) {
-    fwrite(STDOUT, $buffer);
+
+$STDOUT = new WritableResourceStream(STDOUT);
+$write->on('data', function ($buffer) use ($STDOUT) {
+    $STDOUT->write($buffer);
+});
+$write->on('close', function () use ($tunnelStream) {
+    $tunnelStream->close();
 });
 
-
-Loop::addReadStream(STDIN, function ($stream) use ($read) {
-    while($buffer = fread($stream, 8192)) {
-        $read->write($buffer);
-    }
+$STDIN = new ReadableResourceStream(STDIN);
+$STDIN->on('data', function ($chunk) use ($read) {
+    $read->write($chunk);
+});
+$STDIN->on('close', function () use ($tunnelStream) {
+    $tunnelStream->close();
 });
