@@ -23,6 +23,9 @@ class TunnelStream implements EventEmitterInterface
 
     protected $uuidToDeferred = [];
 
+    protected $readDataFn;
+    protected $readCloseDataFn;
+    protected $writeCloseDataFn;
 
 
     public function __construct(
@@ -31,15 +34,15 @@ class TunnelStream implements EventEmitterInterface
         private $canCallback = false
     ) {
 
-        $this->readStream->on('data', function ($data) {
+        $this->readStream->on('data', $this->readDataFn = function ($data) {
             $this->handleRead($data);
         });
 
-        $this->readStream->on('close', function () {
+        $this->readStream->on('close', $this->readCloseDataFn = function () {
             $this->close();
         });
 
-        $this->writStream->on('close', function () {
+        $this->writStream->on('close', $this->writeCloseDataFn = function () {
             $this->close();
         });
 
@@ -336,6 +339,15 @@ class TunnelStream implements EventEmitterInterface
     {
         foreach ($this->streams as $stream) {
             $stream->close();
+        }
+
+        if ($this->readStream->isReadable()) {
+            $this->readStream->removeListener('data', $this->readDataFn);
+            $this->readStream->removeListener('close', $this->readCloseDataFn);
+        }
+
+        if ($this->writStream->isWritable()) {
+            $this->writStream->removeListener('close', $this->writeCloseDataFn);
         }
 
         $this->streams = new \SplObjectStorage;
