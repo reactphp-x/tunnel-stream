@@ -79,14 +79,7 @@ $tunnelStream->ping(3)->then(
 ```php
 use ReactphpX\TunnelStream\TunnelStream;
 use React\ChildProcess\Process;
-use React\Stream\ThroughStream;
-
-// 创建读写流
-$read = new ThroughStream();
-$write = new ThroughStream();
-
-// 初始化隧道流
-$tunnelStream = new TunnelStream($read, $write);
+use React\EventLoop\Loop;
 
 // 创建子进程
 $process = new Process(sprintf(
@@ -96,44 +89,77 @@ $process = new Process(sprintf(
 
 $process->start();
 
-// 处理子进程输出
-$process->stdout->on('data', function ($data) use($read) {
-    $read->write($data);
+// 创建隧道流
+$tunnelStream = new TunnelStream($process->stdout, $process->stdin);
+
+// 监听子进程输出
+$process->stdout->on('data', function ($data) {
+    echo "STDOUT: " . $data . PHP_EOL;
 });
 
 $process->stderr->on('data', function ($data) {
-    echo "Error: " . $data;
+    echo "STDERR: " . $data . PHP_EOL;
 });
 
-// 向子进程发送数据
-$write->on('data', function ($data) use($process) {
-    $process->stdin->write($data);
+$process->on('exit', function ($exitCode) {
+    echo "Process exited with code $exitCode\n";
 });
 
-// 执行远程文件操作
+// 执行文件读取操作
 $fileStream = $tunnelStream->run(function () {
-    return file_get_contents('example.txt');
+    return file_get_contents(__DIR__ . '/composer.json');
 });
 
 $fileStream->on('data', function ($data) {
-    echo "Received file content: " . $data;
+    echo "File Stream: " . $data . PHP_EOL;
 });
 
-// 执行延迟操作
+$fileStream->on('error', function ($error) {
+    echo "File Stream Error: " . $error->getMessage() . PHP_EOL;
+});
+
+// 执行异步延迟操作
 $promiseStream = $tunnelStream->run(function () {
     return \React\Promise\Timer\sleep(2)->then(function () {
-        return 'Delayed response';
+        return 'Hello World';
     });
 });
 
 $promiseStream->on('data', function ($data) {
-    echo "Received delayed data: " . $data;
+    echo "Promise Stream: " . $data . PHP_EOL;
+});
+
+// 持续数据流示例
+$alwayStream = $tunnelStream->run(function ($stream) {
+    $i = 0;
+    $timer = Loop::addPeriodicTimer(1, function () use ($stream, &$i) {
+        $stream->write('Hello World' . $i . PHP_EOL);
+        $i++;
+    });
+    
+    $stream->on('close', function () use ($timer) {
+        Loop::cancelTimer($timer);
+        echo "Always Stream Close\n";
+    });
+    
+    return $stream;
+});
+
+$alwayStream->on('data', function ($data) {
+    echo "Always Stream: " . $data . PHP_EOL;
+});
+
+// 5秒后关闭持续数据流
+Loop::addTimer(5, function () use ($alwayStream) {
+    $alwayStream->close();
 });
 ```
 
 #### 子进程 (child_process_init.php)
 
 ```php
+use React\Stream\WritableResourceStream;
+use React\Stream\ReadableResourceStream;
 use React\EventLoop\Loop;
 use ReactphpX\TunnelStream\TunnelStream;
 use React\Stream\ThroughStream;
@@ -145,16 +171,24 @@ $write = new ThroughStream();
 // 初始化子进程隧道流
 $tunnelStream = new TunnelStream($read, $write, true);
 
-// 处理输出
-$write->on('data', function ($buffer) {
-    fwrite(STDOUT, $buffer);
+// 处理标准输出
+$STDOUT = new WritableResourceStream(STDOUT);
+$write->on('data', function ($buffer) use ($STDOUT) {
+    $STDOUT->write($buffer);
 });
 
-// 处理输入
-Loop::addReadStream(STDIN, function ($stream) use ($read) {
-    while($buffer = fread($stream, 8192)) {
-        $read->write($buffer);
-    }
+$write->on('close', function () use ($tunnelStream) {
+    $tunnelStream->close();
+});
+
+// 处理标准输入
+$STDIN = new ReadableResourceStream(STDIN);
+$STDIN->on('data', function ($chunk) use ($read) {
+    $read->write($chunk);
+});
+
+$STDIN->on('close', function () use ($tunnelStream) {
+    $tunnelStream->close();
 });
 ```
 
@@ -163,11 +197,26 @@ Loop::addReadStream(STDIN, function ($stream) use ($read) {
 - 如何在父子进程间建立双向通信
 - 如何在子进程中执行文件操作
 - 如何处理异步 Promise 操作
+- 如何实现持续的数据流传输
+- 如何优雅地关闭数据流
 - 如何处理错误和异常
 
-完整的示例代码可以在 `examples` 目录下找到：
-- `process.php`: 主进程示例
-- `child_process_init.php`: 子进程示例
+## 最佳实践
+
+1. **错误处理**
+   - 始终监听 error 事件
+   - 在关键操作处添加错误处理逻辑
+   - 使用 try-catch 包装可能抛出异常的代码
+
+2. **资源管理**
+   - 及时关闭不再使用的流
+   - 使用 close 事件清理相关资源
+   - 避免内存泄漏
+
+3. **性能优化**
+   - 合理使用缓冲区大小
+   - 避免过大的数据包
+   - 适时使用心跳检测保持连接
 
 ## API 文档
 
