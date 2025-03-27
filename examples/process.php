@@ -5,15 +5,7 @@ require __DIR__.'/../vendor/autoload.php';
 
 use ReactphpX\TunnelStream\TunnelStream;
 use React\ChildProcess\Process;
-use React\Stream\ThroughStream;
 use React\EventLoop\Loop;
-
-
-
-$read = new ThroughStream();
-$write = new ThroughStream();
-
-$tunnelStream = new TunnelStream($read, $write);
 
 
 $process = new Process(sprintf(
@@ -23,9 +15,9 @@ $process = new Process(sprintf(
 
 $process->start();
 
+$tunnelStream = new TunnelStream($process->stdout, $process->stdin);
 
-$process->stdout->on('data', function ($data) use($read) {
-    $read->write($data);
+$process->stdout->on('data', function ($data) {
     echo "STDOUT: " . $data . PHP_EOL;
 });
 
@@ -36,14 +28,6 @@ $process->stderr->on('data', function ($data) {
 $process->on('exit', function ($exitCode) {
     echo "Process exited with code $exitCode\n";
 });
-
-
-
-$write->on('data', function ($data) use($process) {
-    $process->stdin->write($data);
-    echo "STDIN: " . $data. PHP_EOL;
-});
-
 
 $fileStream = $tunnelStream->run(function () {
     return file_get_contents(__DIR__.'/../composer.json');

@@ -290,7 +290,7 @@ class TunnelStream implements EventEmitterInterface
         }
     }
 
-    protected function write($data)
+    public function write($data)
     {
         $this->writStream->write($this->encode($data));
     }
@@ -305,6 +305,7 @@ class TunnelStream implements EventEmitterInterface
         $this->bufferUpacker->append($buffer);
         if ($messages = $this->bufferUpacker->tryUnpack()) {
             $this->bufferUpacker->release();
+            $this->emit('data', [$messages]);
             return $messages;
         }
         return null;
