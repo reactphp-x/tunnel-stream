@@ -1,0 +1,26 @@
+{
+    "name": "reactphp-x/tunnel-stream",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "ReactphpX\\TunnelStream\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "wpjscc",
+            "email": "wpjscc@gmail.com"
+        }
+    ],
+    "require": {
+        "react/stream": "^1.4",
+        "laravel/serializable-closure": "^2.0",
+        "ramsey/uuid": "^4.7",
+        "rybakit/msgpack": "^0.9.1",
+        "react/promise": "^3.2",
+        "react/promise-timer": "^1.11"
+    },
+    "require-dev": {
+        "react/child-process": "^0.6.6"
+    }
+}
