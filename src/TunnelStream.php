@@ -50,7 +50,7 @@ class TunnelStream implements EventEmitterInterface
         $this->streams = new \SplObjectStorage;
     }
 
-    public function run(callable $closure): Stream\DuplexStreamInterface
+    public function run(string | callable $closure): Stream\DuplexStreamInterface
     {
         $read = new Stream\ThroughStream;
         $write = new Stream\ThroughStream;
