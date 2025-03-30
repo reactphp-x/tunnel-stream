@@ -256,6 +256,7 @@ class TunnelStream implements EventEmitterInterface
                                     'trace' => $e->getTraceAsString(),
                                 ]
                             ]);
+                            $stream->close();
                         }
                     });
                     $stream->on('close', function () use ($stream, $uuid) {
@@ -287,6 +288,7 @@ class TunnelStream implements EventEmitterInterface
                         }
                     } catch (\Throwable $e) {
                         $stream->emit('error', [$e]);
+                        $stream->close();
                     }
                 }
             }
