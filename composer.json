@@ -21,6 +21,8 @@
         "react/promise-timer": "^1.11"
     },
     "require-dev": {
-        "react/child-process": "^0.6.6"
+        "react/child-process": "^0.6.6",
+        "react/async": "^4.3",
+        "phpunit/phpunit": "^10.0"
     }
 }

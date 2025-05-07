@@ -187,13 +187,25 @@ class TunnelStream implements EventEmitterInterface
                             $stream->end();
                         } elseif ($cmd === 'error') {
                             $this->removeStream($stream);
-                            $stream->emit('error', [
-                                new \Exception(
-                                    $message['data']['message'],
-                                    $message['data']['code'],
-                                    null,
-                                )
-                            ]);
+                            try {
+                                $class = $message['data']['class'];
+                                if (class_exists($class)) {
+                                    $exception = unserialize($message['data']['exception']);
+                                } else {
+                                    $msg = '';
+                                    $msg .= $message['data']['file'] ?? 'unknown file';
+                                    $msg .= ':';
+                                    $msg .= $message['data']['line'] ?? 'unknown line';
+                                    $msg .= ' ';
+                                    $msg .= $message['data']['message'] ?? 'unknown error';
+                                    $code = $message['data']['code'] ?? 0;
+                                    $exception = new \Exception($msg, $code);
+                                }
+                                $stream->emit('error', [$exception]);
+                            } catch (\Throwable $e) {
+                                $stream->emit('error', [$e]);
+                            }
+                           
                             $stream->end();
                         }
                     }
@@ -249,11 +261,12 @@ class TunnelStream implements EventEmitterInterface
                                 'cmd' => 'error',
                                 'uuid' => $uuid,
                                 'data' => [
+                                    'exception' => serialize($e),
+                                    'class' => get_class($e),
                                     'message' => $e->getMessage(),
                                     'code' => $e->getCode(),
                                     'file' => $e->getFile(),
                                     'line' => $e->getLine(),
-                                    'trace' => $e->getTraceAsString(),
                                 ]
                             ]);
                             $stream->close();
