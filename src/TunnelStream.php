@@ -369,5 +369,7 @@ class TunnelStream implements EventEmitterInterface
 
         $this->streams = new \SplObjectStorage;
         $this->uuidToStream = [];
+
+        $this->removeAllListeners();
     }
 }
