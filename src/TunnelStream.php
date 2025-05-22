@@ -169,7 +169,7 @@ class TunnelStream implements EventEmitterInterface
                 if (!isset($message['cmd'])) {
                     continue;
                 }
-                $uuid = $message['uuid'];
+                $uuid = $message['uuid'] ?? null;
                 $cmd = $message['cmd'];
 
                 if (in_array($cmd, ['data', 'end', 'close', 'error'])) {
