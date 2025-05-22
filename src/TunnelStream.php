@@ -303,6 +303,8 @@ class TunnelStream implements EventEmitterInterface
                         $stream->emit('error', [$e]);
                         $stream->close();
                     }
+                } else {
+                    $this->emit('cmd', [$cmd, $message]);
                 }
             }
         }
